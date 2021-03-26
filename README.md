@@ -10,6 +10,7 @@ The  PWM  outputs  from  the  HW-052  will  be  used  as  step  functions  to  d
 
 The HW-048 is a Polulu-clone ”stepper motor driver” H-Bridge  breakout  for  the  TB6612FNG  IC.  It  features  EMF  protection,  voltage  smoothing,  and  dual PWM-driven step function output.
 
+![TruthTable](https://github.com/31415pi/ECE372_I2C2_BBB_NEMA_DRIVER/blob/main/Images/tb66_direction.png)
 Figure 2:  Truth Table for TB6612 IC
 
 Using both sets of the HW-048 output it is possible to have highly precise operation of a bipolarstepper motor.  We will be using a Sainsmart 17-HSR-1006-25 BET nema motor (2014-05-14 manufacturingdate). Part 1 is simply finding success with sending any data on the I2C output. Part 2 will be utilizing the protocol and peripherals to demonstrate controlled rotational movementof the NEMA motor shaft both in clockwise and counterclockwise directions.
