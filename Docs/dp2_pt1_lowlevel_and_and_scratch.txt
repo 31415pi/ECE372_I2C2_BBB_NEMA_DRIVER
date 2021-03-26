@@ -1,0 +1,244 @@
+
+
+		//i2c defines - regex parsed from pdf
+		
+		#define CM_PER 	  0x44E00000
+		#define CM_WKUP   0x44E0400
+		#define I2C2_BASE 0x4819c000
+		#define	SCL_MUX		   0x975
+		#define SDA_MUX		   0x958
+		#define CM_BASE	  0x44E10000
+		
+		#define REVNB_LO        0x00
+		#define REVNB_HI        0x04
+		#define SYSC            0x10
+		#define IRQSTATUS_RAW   0x24
+		#define IRQSTATUS       0x28
+		#define IRQENABLE_SET   0x2c
+		#define IRQENABLE_CLR   0x30
+		#define WE              0x34
+		#define DMARXENABLE_SET 0x38
+		#define DMATXENABLE_SET 0x3c
+		#define DMARXENABLE_CLR 0x40
+		#define DMATXENABLE_CLR 0x44
+		#define DMARXWAKE_EN    0x48
+		#define DMATXWAKE_EN    0x4c
+		#define SYSS            0x90
+		#define BUF             0x94
+		#define CNT             0x98
+		#define DATA            0x9c
+		#define CON             0xa4
+		#define OA              0xa8
+		#define SA              0xac
+		#define PSC             0xb0
+		#define SCLL            0xb4
+		#define SCLH            0xb8
+		#define SYSTEST         0xbc
+		#define BUFSTAT         0xc0
+		#define OA1             0xc4
+		#define OA2             0xc8
+		#define OA3             0xcc
+		#define ACTOA           0xd0
+		#define SBLOCK          0xd4
+
+		#define I2C_EN 15
+
+		LDR		R0, =0x44E00044 	@ Load address for CM_PER+CM_PER_I2C2_CLKCTRL
+		MOV		R2, #0x02			@ Enable
+		STRB	R2, [R0]			@ Write value to register
+		@ Change pin mode
+		LDR		R0, =0x44E1097C		@ Load address for conf_uart1_rtsn
+		MOV		R2, #0x5b			@ Value for  pullup mode 03 slo slew
+		STRB	R2, [R0]			@ Write value to register 
+		LDR		R0, =0x44E10958		@ Load address for conf_uart1_ctsn
+		MOV		R2, #0x7b			@ Value for input pullup mode 03 slo slew 
+		STRB	R2, [R0]			@ Write value to register
+		@ reset 
+		LDR		R0, =0x4819C010		@ Load address for I2C_SYSC
+		MOV		R2, #0x02			@ Value to set bit-2/SRST
+		STRB	R2, [R0]			@ Write value to register
+		@ Scale I2C clock to 12MHz
+		LDR		R0, =0x4819C0B0 	@ Load address for I2C_PSC
+		MOV		R2, #0x03			@ Value to scale by 4
+		STRB	R2, [R0]			@ Write value to register
+		@ 100Kbps, fiddy pcent
+		LDR		R0, =0x4819C0B4		@ Load address of I2C_SCLL
+		MOV		R2, #0x35			@ Value for SCLL
+		STRB	R2, [R0]			@ Write value to register 
+		LDR		R0, =0x4819C0B8		@ Load address of I2C_SCLH
+		MOV		R2, #0x37			@ Value for SCLH
+		STRB	R2, [R0]			@ Write value to register 
+		@ Set I2C_OA
+		LDR		R0, =0x4819C0A8 	@ Load address for I2C_OA
+		MOV		R2, #0x00			@ Value for own address
+		STRB	R2, [R0]			@ Write value to register
+		@Debug Config IN I2C_SYSTEST
+		LDR 	R0, =0X4819C0BC		@ Address of I2C_SYSTEST
+		LDR		R2, [R0]			@ LOAD value 
+		AND 	R2,	R2, #0xFFFFBFFF	@ Mask it for b14-Free Debug
+		STR		R2, [R0]			@ Write value to registert
+	@ Take I2C as master transmitter 7-bit data
+		LDR		R0, =0x4819C0A4 	@ Load address for I2C_CON
+		MOV		R2, #0x8600			@ Value for bits 9, 10, 15
+		STR		R2, [R0]			@ Write value to register
+		@ Set bytes to transfer
+		LDR		R0, =0x4819C098  	@ Load address for I2C_CNT
+		MOV		R2, #0x0A			@ Value for bits 0-15/DCOUNT:10_D characters
+		STRB	R2, [R0]			@ Write value to register	
+		@ Set slave address xxxxxxx
+		LDR		R0, =0x4802A0AC 	@ Load address for I2C_SA
+		MOV		R2, #0xff			@ Value for bits 0-7
+		STR		R2, [R0]			@ Write value to register 	
+		
+	
+	
+	
+	
+	
+	HWREG(CM_WKUP + 0x44)		= 0x02;	//I2C2 CLK
+	HWREG(CM_BASE + SCL_MUX) 	= 0x5B;	//PIN MODE 3 - PULLUP SLOW SLEW
+	HWREG(CM_BASE + SDA_MUX)	= 0x7B;	//PIN MODE 3 - PULLUP SLOW SLEW INPUT
+	HWREG(I2C2_BASE + SYSC)		= 0x02;	//SET BIT 2 SRST
+	HWREG(I2C2_BASE + PSC)		= 0x03;	//SCALE BY 4 TO GET 12 MHz CLOCK
+	HWREG(I2C2_BASE + SCLL)		= 0x35;	//SCALAR LOW REG 100Kbps
+	HWREG(I2C2_BASE + SCLH)		= 0x37;	//SCALAR HIGH REG
+	HWREG(I2C2_BASE + OA)		= 0x00;	//-OWN ADDRESS-
+	HWREG(I2C2_BASE + SA)		= 0xFF;	//-SLAVE ADDRESS-
+	HWREG(I2C2_BASE + SYSTEST)	= 0xFFFFBFFF// MASKIN B14 - FREE DEBUG
+		@Debug Config IN I2C_SYSTEST
+	ASM("LDR 	R0, =0X4819C0BC\n\t"		//@ Address of I2C_SYSTEST
+		"LDR		R2, [R0]\n\t"			//@ LOAD value 
+		"AND 	R2,	R2, #0xFFFFBFFF\n\t"	//@ Mask it for b14-Free Debug
+		"STR		R2, [R0]\n\t"			//@ Write value to registert
+	HWREG(I2C2_BASE + CON)		= 0x8600;	//ENABLE BIT 9 10 15
+	HWREG(I2C2_BASE + CNT)		= 0x0A;		// COUNT OF TEN
+// MARCH 19TH CONTINUATION
+//	@SET SLAVE ADDRESS-
+//	@HWREG(I2C2_BASE + SA)		= SLAVE_ADDY_HERE //SET SLAVE ADDY
+	HWREG(I2C2_BASE + IRQSTATUS)= 0X7FFF	// CLEAR DEM INTS
+	
+	//TIME TO SEND STUFF - WAIT SOME TIME BETWEEN ALL
+	//TRICK: save condition to stack then work!
+
+
+	//POLL BB
+	//WAIT
+	//FLAG FOR START
+	//WAIT
+	//CHECK XREADY
+	//WAIT
+	//LOAD UP YER DATA
+	//WRITE THE DATA
+	//WAIT
+	//WRITE NEXT BIT.
+	//WHEN FINISHED THEN CHECK BB
+	//CHECK IRQSTATUS
+	
+	
+
+
+
+void I2C_TEST(void){ //SETUP TO EASILY DISMEMBER INTO OTHER FUNCTIONS.
+    delay_();
+    while(HWREG(I2C2_BASE + IRQSTATUS_RAW) != 0x1000){ ///poll bb
+        turn_on_leds();
+        delay_();
+        turn_off_leds();
+        delay_();
+    }
+    //    asm("BBTEST:"                   //BB TESTING POLL METHOD
+//            "LDR R0, I2C2_BASE + IRQSTATUS_RAW"
+//            "LDR R1, [R0]"
+//            "LDR R4, =#0x1000"
+//            "AND R1, R4, R1"
+//            "TST R1, #0x1000"
+//            "BNE BBTEST"            // KEEP TESTING IF NOT POPPED
+//            );
+    delay_();
+    HWREG(I2C2_BASE + CON) = 0x8603;     // START VAL DELIVERY
+    delay_();
+    HWREG(I2C2_BASE + IRQSTATUS) = 0x10;    //clear xrdy bit
+    //    asm("N:"                          //CLEARING XREADY
+//            "LDR R0, I2C2+IRQSTATUS"
+//            "MOV R1, #0x10"         // VAL TO CLEAR  XRDY
+//            "STRB R1, [R0]"         // CLEAR
+//    );
+    delay_();
+    while(HWREG(I2C2_BASE + IRQSTATUS_RAW) != 0x10){
+        turn_on_leds();
+        delay_();
+        turn_off_leds();
+        delay_();
+    }
+    //    asm("TST_XRDY:"                 //POLLIN X RDY
+//            "LDR R0, I2C2+IRQSTATUS_RAW"
+//            "LDRB R1, [R0]"
+//            "TST R1, #0x10"
+//           "BEQ TST_XRDY"          // CHECK UNTIL FINISHED.
+//            );
+    for(int testing=100; testing < 0 ; testing --){
+        HWREG(I2C2_BASE + DATA) = 0xFF;
+        delay_();
+        HWREG(I2C2_BASE + DATA) = 0x01;
+        delay_();
+        HWREG(I2C2_BASE + DATA) = 0xAA;
+        delay_();
+        HWREG(I2C2_BASE + DATA) = 0x0A;
+        delay_();
+    };
+}
+
+
+
+
+
+
+
+void I2C_TEST(void){ //SETUP TO EASILY DISMEMBER INTO OTHER FUNCTIONS.
+    delay_();
+    while(HWREG(I2C2_BASE + IRQSTATUS_RAW) != 0x1000){ ///poll bb
+        turn_on_leds();delay_();turn_off_leds();delay_();
+    }
+    delay_();
+    HWREG(I2C2_BASE + CON) = 0x8603;     // START VAL DELIVERY
+    delay_();
+    HWREG(I2C2_BASE + IRQSTATUS) = 0x10;    //clear xrdy bit
+    delay_();
+    while(HWREG(I2C2_BASE + IRQSTATUS_RAW) != 0x10){
+           turn_on_leds();delay_();turn_off_leds();delay_();
+    }
+    for(int testing=100; testing < 0 ; testing --){
+        HWREG(I2C2_BASE + DATA) = 0xFF;
+        delay_();
+        HWREG(I2C2_BASE + DATA) = 0x01;
+        delay_();
+        HWREG(I2C2_BASE + DATA) = 0xAA;
+        delay_();
+        HWREG(I2C2_BASE + DATA) = 0x0A;
+        delay_();
+    };
+}
+
+
+
+
+
+
+
+
+
+	@CLEAR INTERRUPTS
+	@POLL LOOP
+
+
+	
+/*	@ Clear interrupts
+	LDR		R0, =0x4819C
+	.028		@ Load address for I2C_IRQSTATUS
+	LDR		R2, =0x7FFF			@ Load address for value to clear interrupts
+	STR		R2, [R0]			@ Write value to register  */
+	
+	
+	
+	
+	

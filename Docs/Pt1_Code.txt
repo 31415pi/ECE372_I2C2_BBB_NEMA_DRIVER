@@ -1,0 +1,112 @@
+//PLACEHOLDER FOR INT_HANDLER
+void int_handler(void)
+{}
+//BEGIN GLOBAL DEFINES 
+#define HWREG(x) (*((volatile unsigned int *)(x)))
+volatile unsigned int USR_STACK[100];
+volatile unsigned int INT_STACK[100];
+
+//DEFINE NECESSARY REGISTERS
+#define CM_PER    0x44E00000
+#define CM_WKUP   0x44E04000
+#define CM_BASE   0x44E10000
+#define I2C2_BASE 0x4819C000
+
+//DEFINE CERTAIN VALUES
+#define SCL_MUX        0x97C
+#define SDA_MUX        0x978
+#define BB_SET        0x1000
+
+//DEFINE REGISTER OFFSETS
+#define SYSC            0x10
+#define IRQSTATUS_RAW   0x24
+#define IRQSTATUS       0x28
+#define SYSS            0x90
+#define BUF             0x94
+#define CNT             0x98
+#define DATA            0x9c
+#define CON             0xa4
+#define OA              0xa8
+#define SA              0xac
+#define PSC             0xb0
+#define SCLL            0xb4
+#define SCLH            0xb8
+#define SYSTEST         0xbc
+
+//FUNCTION DEFINITIONS
+void write_i2c(unsigned int FIRST);
+void I2C_setup(void);
+void I2C_init(void);
+void I2C_arm(void);
+void delay(int time);
+void STACK_SETUP(void);
+
+//BEGIN FUNCTIONS
+void I2C_init()
+{
+    HWREG(CM_WKUP + 0xEC) = 0x2;        //wakeup timer 5
+    HWREG(CM_WKUP + 0x518) = 0x2;       //set clock speed
+    HWREG(CM_BASE + SCL_MUX)    = 0x33; //PIN MODE 3 - PULLUP SLOW SLEW SCL pin 19
+    HWREG(CM_BASE + SDA_MUX)    = 0x33; //PIN MODE 3 - PULLUP SLOW SLEW INPUT SDA pin 20
+    HWREG(CM_PER + 0x44)        = 0x02; //I2C2 CLK
+    HWREG(I2C2_BASE + SYSC)     = 0x02; //RESET I2C2 disable autoidle
+    HWREG(I2C2_BASE + PSC)      = 0x03; //SCALE BY 4 TO GET 400kHz
+    HWREG(I2C2_BASE + SCLL)     = 0xB4; //SCALAR LOW REG
+    HWREG(I2C2_BASE + SCLH)     = 0xB8; //SCALAR HIGH REG
+    HWREG(I2C2_BASE + OA)       = 0x00; //-OWN ADDRESS-
+    HWREG(I2C2_BASE + SA)       = 0x40; //-SLAVE ADDRESS-
+    HWREG(I2C2_BASE + CNT)      = 0x04; // SET COUNT TO FOUR
+}
+
+void I2C_arm(void)
+{
+    HWREG(I2C2_BASE + IRQSTATUS_RAW)= 0x7FFF; // DIABLE IRQ
+    HWREG(I2C2_BASE + CON)      = 0x8600;   //ENABLE BIT 9 10 15
+}
+
+
+void delay(int time)
+{
+    for(int delayval = time; delayval >= 0 ; delayval--)
+    {
+        asm("NOP");
+    }
+}
+
+void I2C_setup(void)
+{ 
+    delay(500);
+    while((HWREG(I2C2_BASE+IRQSTATUS_RAW) & BB_SET) ){;}
+    HWREG(I2C2_BASE + CNT) = 0x02; // COUNT SET TO 2
+    HWREG(I2C2_BASE + CON) = 0x8603;     // START VAL DELIVERY
+    while(!(HWREG(I2C2_BASE + IRQSTATUS_RAW))){;}
+}
+
+void write_i2c(unsigned int FIRST)
+{
+    HWREG(I2C2_BASE + DATA) = FIRST;	//send the bit
+    delay(500);			//wait
+    HWREG(I2C2_BASE + IRQSTATUS) = 0x10; // RESET XREADY
+    delay(500);
+}
+
+void STACK_SETUP(void)
+{
+    asm("LDR R13, =USR_STACK");  
+    asm("ADD R13, R13, #0x100");   
+    asm("CPS #0x12");
+    asm("LDR R13, =INT_STACK");     
+    asm("ADD R13, R13, #0x100");    
+    asm("CPS #0x13");                
+}
+
+int main(void) { //call the functions in correct order
+	STACK_SETUP();
+    I2C_init();
+    I2C_arm();
+    delay(10);
+    I2C_setup();
+    write_i2c(0x00);
+    write_i2c(0xFF);
+    return 0;
+}

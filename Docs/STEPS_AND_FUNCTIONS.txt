@@ -1,0 +1,536 @@
+
+#define LED8_ON_L  0x26 // read/write LED8 output and  brightness control byte 0
+#define LED8_ON_H  0x27 // read/write LED8 output and  brightness control byte 1
+#define LED8_OFF_L  0x28 // read/write LED8 output and  brightness control byte 2
+#define LED8_OFF_H  0x29 // read/write LED8 output and  brightness control byte 3
+
+#define LED9_ON_L  0x2A // read/write LED9 output and  brightness control byte 0
+#define LED9_ON_H  0x2B // read/write LED9 output and  brightness control byte 1
+#define LED9_OFF_L  0x2C // read/write LED9 output and  brightness control byte 2
+#define LED9_OFF_H  0x2D // read/write LED9 output and  brightness control byte 3
+
+#define LED10_ON_L  0x2E // read/write LED10 output and  brightness control byte 0
+#define LED10_ON_H  0x2F // read/write LED10 output and  brightness control byte 1
+#define LED10_OFF_L  0x30 // read/write LED10 output and  brightness control byte 2
+#define LED10_OFF_H  0x31 // read/write LED10 output and  brightness control byte 3
+
+#define LED11_ON_L  0x32 // read/write LED11 output and  brightness control byte 0
+#define LED11_ON_H  0x33 // read/write LED11 output and  brightness control byte 1
+#define LED11_OFF_L  0x34 // read/write LED11 output and  brightness control byte 2
+#define LED11_OFF_H  0x35 // read/write LED11 output and  brightness control byte 3
+
+#define LED12_ON_L  0x36 // read/write LED12 output and  brightness control byte 0
+#define LED12_ON_H  0x37 // read/write LED12 output and  brightness control byte 1
+#define LED12_OFF_L  0x38 // read/write LED12 output and  brightness control byte 2
+#define LED12_OFF_H  0x39 // read/write LED12 output and  brightness control byte 3
+
+#define LED13_ON_L  0x3A // read/write LED13 output and  brightness control byte 0
+#define LED13_ON_H  0x3B // read/write LED13 output and  brightness control byte 1
+#define LED13_OFF_L  0x3C // read/write LED13 output and  brightness control byte 2
+#define LED13_OFF_H  0x3D // read/write LED13 output and  brightness control byte 3
+
+    int CW[4][4] =    {{1,0,1,0},{0,1,1,0},{0,1,0,1},{1,0,0,1}};
+    int CCW[4][4]=    {{1,0,0,1},{0,1,0,1},{0,1,1,0},{1,0,1,0}};
+
+    int STEP_HOFF[] = {LED10_OFF_H, LED9_OFF_H, LED11_OFF_H, LED12_OFF_H};
+    int STEP_HON[] = {LED10_ON_H, LED9_ON_H, LED11_ON_H, LED12_ON_H};
+    int STEP_LOFF[] = {LED10_OFF_L, LED9_OFF_L, LED11_OFF_L, LED12_OFF_L};
+    int STEP_LON[] = {LED10_ON_L, LED9_ON_L, LED11_ON_L, LED12_ON_L};
+
+    HALF-STEP
+	{{1,0,1,0},{1,0,0,0},{1,0,0,1},{1,0,0,1},{0,1,0,1,},{0,1,0,0}{0,1,1,0},{0,0,1,0}}
+	
+	
+	green		AO1
+	orange		nc
+	yellow		AO2
+	white		BO1
+	red			nc
+	black		BO2
+	
+	A	GREEN	AO1		PWM10	11100000111000000
+	B	WHITE   BO1 	PWM11	00111000001110000
+	C	YELLOW  AO2 	PWM9	00001110000011100
+	D	BLACK   BO2 	PWM12	10000011100000111
+	
+	int A[]	= {1,1,1,0,0,0,0,0};//,1,1,1,0,0,0,0,0,0}
+	int B[]	= {0,0,1,1,1,0,0,0};//,0,0,1,1,1,0,0,0,0}
+	int C[]	= {0,0,0,0,1,1,1,0};//,0,0,0,0,1,1,1,0,0}
+	int D[]	= {1,0,0,0,0,0,1,1};//,1,0,0,0,0,0,1,1,1}
+	
+	for (int step = 0; step < 16; step ++)
+	{
+		I2C_setup();
+		write_i2c(A[step] == 1 ? LED10_OFF_H : LED10_ON_H); 
+		write_i2c(A[step]);
+		I2C_setup();
+		write_i2c(A[step] == 1 ? LED10_ON_H : LED10_OFF_H); 
+		write_i2c(A[step]);
+
+
+		I2C_setup();			
+		write_i2c(B[step] == 1 ? LED11_OFF_H : LED11_ON_H);
+		write_i2c(B[step]);
+		I2C_setup();			
+		write_i2c(B[step] == 1 ? LED11_ON_H : LED11_OFF_H);
+		write_i2c(B[step]);
+
+		
+		I2C_setup();
+		write_i2c(C[step] == 1 ? LED9_OFF_H : LED9_ON_H);
+		write_i2c(C[step]);
+		I2C_setup();
+		write_i2c(C[step] == 1 ? LED9_ON_H : LED9_OFF_H);
+		write_i2c(C[step]);
+
+		
+		I2C_setup();
+		write_i2c(D[step] == 1 ? LED12_OFF_H : LED12_ON_H);
+		write_i2c(D[step]);
+		I2C_setup();
+		write_i2c(D[step] == 1 ? LED12_ON_H : LED12_OFF_H);
+		write_i2c(D[step]);
+
+	}
+
+		
+	TB6612-POLULU
+	GND		PWMA
+	VCC		AIN2			pwm9	C
+g	AO1		AIN1			pwm10	A
+y	AO2		STBY
+b	BO2		BIN1			pwm11	B
+w	BO1		BIN2			pwm12	D
+	VMOT	PWMB
+	GND		GND
+	
+			
+	       for(int counta = 0; counta < 100; counta++)
+        {
+            for(int step = 0; s < 9; s_val++)
+            {
+                for( int step = 0; step < 4; step++)
+                {
+                    STEPPER[]
+                }
+ /*                   I2C_setup();                    //init write
+                            //reset adjacent register to the associated H/L on deck
+                    write_i2c(
+                       CW[step][s_val] == 1 ? STEP_OFF[s_val]:STEP_ON[s_val] );
+                    write_i2c(
+                       CW[step][s_val] == 1 ? 0x00 : 0x01);
+                    delay_();
+                    delay_();*/
+
+                   I2C_setup();
+                    write_i2c(                    //send register of interest
+                       CW[step][s_val] == 1?STEP_ON[s_val]:STEP_OFF[s_val] );
+                    write_i2c(CW[step][s_val]);     //send the reg val
+                    delay_();
+                }
+                delay_();
+            }
+
+        }
+    //}
+  /*  if(dir == 0)
+    {
+        for(int count = 0; count<100; count++){
+            for(int step = 0; step <5; step++)
+            {
+                for(int s_val = 0; s_val < 4; s_val++)
+                {
+                    I2C_setup();                    //init write
+                    write_i2c(                    //send register of interest
+                       CCW[step][s_val] == 1?STEP_ON[s_val]:STEP_OFF[s_val] );
+                    write_i2c(CCW[step][s_val]);    //send the reg val
+                    delay_();
+                }
+                delay_();
+            }
+
+        }
+
+    }*/
+    ALL_LED_OFF();
+	
+	
+	
+	
+	
+	///////////////////
+	    for(int cycles = 0; cycles < 250 ; cycles++)
+     {
+         for (int step = 0; step < 8; step ++)
+          {
+//              I2C_setup();
+//             write_i2c(A[step] == 1 ? LED10_OFF_H : LED10_ON_H);
+//              write_i2c(A[step] == 1 ? 0x00 : 0x01);
+//              delay_();
+              I2C_setup();
+              write_i2c(A[step] == 1 ? LED10_ON_H : LED10_OFF_H);
+              write_i2c(A[step]);
+              delay_();
+              delay_();
+              delay_();
+              delay_();
+              delay_();
+              delay_();
+
+
+              I2C_setup();
+              write_i2c(B[step] == 1 ? LED9_OFF_H : LED9_ON_H);
+              write_i2c(B[step] == 1 ? 0x00 : 0x01);
+              delay_();
+              I2C_setup();
+              write_i2c(B[step] == 1 ? LED9_ON_H : LED9_OFF_H);
+              write_i2c(B[step]);
+              delay_();
+              delay_();
+              delay_();
+              delay_();
+              delay_();
+              delay_();
+
+
+              I2C_setup();
+              write_i2c(C[step] == 1 ? LED11_OFF_H : LED11_ON_H);
+              write_i2c(C[step] == 1 ? 0x00 : 0x01);
+              delay_();
+              I2C_setup();
+              write_i2c(C[step] == 1 ? LED11_ON_H : LED11_OFF_H);
+              write_i2c(C[step]);
+              delay_();
+              delay_();
+              delay_();
+              delay_();
+              delay_();
+              delay_();
+
+              I2C_setup();
+              write_i2c(D[step] == 1 ? LED12_OFF_H : LED12_ON_H);
+              write_i2c(D[step] == 1 ? 0x00 : 0x01);
+              delay_();
+              I2C_setup();
+              write_i2c(D[step] == 1 ? LED12_ON_H : LED12_OFF_H);
+              write_i2c(D[step]);
+              delay_();
+              delay_();
+              delay_();
+              delay_();
+              delay_();
+              delay_();
+          }
+         delay_();
+         delay_();
+         delay_();
+         delay_();
+
+     }
+	 
+	 
+      i2c_send2(LED2_ON_H, 0x10);  // Turn PWMA pin HIGH
+      i2c_send2(LED4_ON_H, 0x00);  // Turn AIN1 LOW
+      i2c_send2(LED3_ON_H, 0x00);  // Turn AIN2 LOW
+      i2c_send2(LED7_ON_H, 0x10);  // Turn PWMB pin HIGH
+      i2c_send2(LED6_ON_H, 0x10);  // Turn BIN1 HIGH
+      i2c_send2(LED5_ON_H, 0x10);  // Turn BIN2 HIGH
+	  
+	  intputs:
+pwm:	10	9						11	12							10	9	12	11	  
+	  AI1	AI2	PWMA	STBYA	|	BI1	BI2		PWMB	STBYB	|	AO1	AO2	BO2	BO1	|	STEP1	STEP2	STEP3	STEP4 | S	|
+	 ===========================+===============================+===================+=================================+=====+
+	  H		L	H		H		|	H	L		H		H		|	H	L	H	L	|	HLHL						  |	1	|
+	  H		L	H		H		|	L	H		H		H		|	H	L	L	H	|			HLLH				  |	2	|
+	  L		H	H		H		|	L	H		H		H		|	L	H	L	H	|					LHLH		  |	3	|
+	  L		H	H		H		|	H	L		H		H		|	L	H	H	L	|							LHHL  |	4	|
+
+	  
+
+//B A D C TOP TO BOTTOM.
+	  
+void halfstep(int dir)
+{
+    stdby();
+    int steps[8][4]=  {{1,0,1,0},{1,0,0,0},{1,0,0,1},{0,0,0,1},{0,1,0,1},{0,1,0,0},{0,1,1,0},{0,0,1,0}};
+    int regs[] = {LED9_ON_H, LED10_ON_H, LED11_ON_H, LED12_ON_H};
+
+
+    for(int cycle = 0 ; cycle < 251; cycle ++)
+    {
+        if(dir ==1)
+        {
+            for(int s = 0; s < 8; s++)
+            {
+                chan_step(s);
+            }
+        } else
+        {
+            for(int s = 7; s >= 0 ; s--)
+            {
+                chan_step(s);
+            }
+        }
+    }
+}
+
+
+void chan_step(int stepno)
+{
+    for(int t = 0; t < 4; t++)
+    {
+         I2C_setup();
+         write_i2c( regs[t] );
+         write_i2c( steps[stepno][t] == 1? 0x01 : 0x00 );
+         delay(1000);
+    }
+    delay(10000);
+}
+
+void stdby(void)
+{
+    I2C_setup();
+    write_i2c(LED8_OFF_H);
+    write_i2c(0x00);
+    I2C_setup();
+    write_i2c(LED13_OFF_H);
+    write_i2c(0x00);
+    delay(500);
+
+    I2C_setup();
+    write_i2c(LED8_ON_H);
+    write_i2c(0x01);
+    I2C_setup();
+    write_i2c(LED13_ON_H);
+    write_i2c(0x01);
+    delay(500);
+}
+
+//old versions:
+	  
+void halfstep(int dir)
+{
+    int steps[8][4]=  {{1,0,1,0},{1,0,0,0},{1,0,0,1},{0,0,0,1},{0,1,0,1},{0,1,0,0},{0,1,1,0},{0,0,1,0}};
+    int regs[] = {LED9_ON_H, LED10_ON_H, LED11_ON_H, LED12_ON_H};
+
+    for(int s = 0; s <8; s++)
+    {
+        for(int t = 0; t < 4; t++)
+        {
+             I2C_setup();
+             write_i2c( regs[t] );
+             write_i2c( step[s][t] == 1? 0x01 : 0x00 );
+             delay(5000);
+        }
+        delay(40000);
+    }
+}
+
+void stdby(void)
+{
+    I2C_setup();
+    write_i2c(LED8_OFF_H);
+    write_i2c(0x00);
+    I2C_setup();
+    write_i2c(LED13_OFF_H);
+    write_i2c(0x00);
+    delay_(500);
+
+    I2C_setup();
+    write_i2c(LED8_ON_H);
+    write_i2c(0x01);
+    I2C_setup();
+    write_i2c(LED13_ON_H);
+    write_i2c(0x01);
+    delay(500);
+}
+
+/////removed!!!!
+
+void CW(void)
+{   //HLHH --> CLOCKWISE MOVEMENT
+    if (CW_SET == 0){       //ONLY TURN EVERYTHING OFF ONCE
+        ALL_LED_OFF();
+        CW_SET = 1;
+        CCW_SET =0;
+    }
+
+    I2C_setup();
+    write_i2c(LED8_ON_H);       //PWM 8 HIGH
+    write_i2c(0x01);            //Set ON
+
+
+    I2C_setup();
+    write_i2c(LED9_OFF_H);      //PWM 9 HIGH
+    write_i2c(0x00);            //Set OFF
+
+    if(MOTOR2WR)
+    {
+        I2C_setup();
+        write_i2c(LED10_ON_H);       //PWM 10 HIGH
+        write_i2c(0x01);            //Set ON
+
+        I2C_setup();
+        write_i2c(LED0_ON_H);       //PWM 0 HIGH
+        write_i2c(0x01);            //Set ON
+    }
+}
+
+void CCW(void)
+{   //LHHH --> Counter CLOCKWISE MOVEMENT
+    if (CCW_SET == 0)
+    {
+        ALL_LED_OFF();
+        CCW_SET = 1;
+        CW_SET =0;
+    }
+    I2C_setup();
+    write_i2c(LED8_OFF_H);      //PWM 8 HIGH
+    write_i2c(0x00);            //Set OFF
+
+    I2C_setup();
+    write_i2c(LED9_ON_H);       //PWM 9 HIGH
+    write_i2c(0x01);            //Set ON
+
+    if (MOTOR2WR)
+    {
+        I2C_setup();
+        write_i2c(LED10_ON_H);       //PWM 10 HIGH
+        write_i2c(0x01);            //Set ON
+
+        I2C_setup();
+        write_i2c(LED0_ON_H);       //PWM 0 HIGH
+        write_i2c(0x01);            //Set ON
+    }
+}
+
+void new_CYCLE()
+{
+
+    I2C_setup();
+    write_i2c(LED8_OFF_H);
+    write_i2c(0x00);
+    I2C_setup();
+    write_i2c(LED13_OFF_H);
+    write_i2c(0x00);
+    delay_();
+    delay_();
+
+    I2C_setup();
+    write_i2c(LED8_ON_H);
+    write_i2c(0x01);
+    I2C_setup();
+    write_i2c(LED13_ON_H);
+    write_i2c(0x01);
+    delay_();
+    delay_();
+
+    int A[] = {1,1,1,0,0,0,0,0};    //,1,1,1,0,0,0,0,0,0}
+    int B[] = {0,0,1,1,1,0,0,0};    //,0,0,1,1,1,0,0,0,0}
+    int C[] = {0,0,0,0,1,1,1,0};    //,0,0,0,0,1,1,1,0,0}
+    int D[] = {1,0,0,0,0,0,1,1};    //,1,0,0,0,0,0,1,1,1}
+
+
+     for(int cycles = 0; cycles < 250 ; cycles++)
+     {
+         for (int step = 0; step < 8; step ++)
+          {
+              I2C_setup();
+              write_i2c(LED10_ON_H);
+              write_i2c(A[step] == 0 ? 0x00 : 0x01);
+              delay(5000);
+
+              I2C_setup();
+              write_i2c(LED9_ON_H);
+              write_i2c(B[step] == 0 ? 0x00 : 0x01);
+              delay(5000);
+
+
+              I2C_setup();
+              write_i2c(LED11_ON_H);
+              write_i2c(C[step] == 0 ? 0x00 : 0x01);
+              delay(5000);
+
+              I2C_setup();
+              write_i2c(LED12_ON_H);
+              write_i2c(D[step] == 0 ? 0x00 : 0x01);
+              delay(5000);
+          }
+         delay(400000);
+
+     }
+}
+
+
+void CYCLE(int dir)
+{
+
+    I2C_setup();
+    write_i2c(LED8_OFF_H);
+    write_i2c(0x00);
+    I2C_setup();
+    write_i2c(LED13_OFF_H);
+    write_i2c(0x00);
+
+    I2C_setup();
+    write_i2c(LED8_ON_H);
+    write_i2c(0x01);
+    I2C_setup();
+    write_i2c(LED13_ON_H);
+    write_i2c(0x01);
+
+ //   int CW[4][4] =    {{1,0,1,0},{0,1,1,0},{0,1,0,1},{1,0,0,1}};
+ //   int CCW[4][4]=    {{1,0,0,1},{0,1,0,1},{0,1,1,0},{1,0,1,0}};
+    int STEPPER[9][4] =      {{1,0,0,1},{1,1,0,0},{0,1,1,0},{0,0,1,1},{1,0,0,1,},{1,1,0,0},{0,1,1,0},{0,0,1,1},{0,0,0,1}};
+
+    int STEP_OFF[] = {LED10_OFF_H, LED11_OFF_H, LED9_OFF_H, LED12_OFF_H};
+    int STEP_ON[] = {LED10_ON_H, LED11_ON_H, LED9_ON_H, LED12_ON_H};
+
+    if(dir == 1)
+    {
+        for(int counta = 0; counta < 100; counta++)
+        {
+            for(int step = 0; step < 9; step++)
+            {
+                for( int sval = 0; sval < 4; sval++)
+                {
+                    STEPPER[step][sval];
+                    I2C_setup();
+                    write_i2c(                    //send register of interest
+                        STEPPER[step][sval] == 1?STEP_ON[sval]:STEP_OFF[sval] );
+                    write_i2c(STEPPER[step][sval]);     //send the reg val
+                    delay_();
+                }
+                delay_();
+                delay_();
+                delay_();
+            }
+        }
+    } else
+    {
+        for(int counta = 0; counta < 100; counta++)
+        {
+            for(int step = 8; step >= 0 ; step--)
+            {
+                for( int sval = 0; sval < 4; sval++)
+                {
+                    STEPPER[step][sval];
+                    I2C_setup();
+                    write_i2c(                    //send register of interest
+                        STEPPER[step][sval] == 1?STEP_ON[sval]:STEP_OFF[sval] );
+                    write_i2c(STEPPER[step][sval]);     //send the reg val
+                    delay_();
+                    delay_();
+                }
+                delay_();
+                delay_();
+            }
+        }
+    }
+
+    ALL_LED_OFF();
+}
+
+
+
+

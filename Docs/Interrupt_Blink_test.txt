@@ -1,0 +1,239 @@
+// This program will blink all of the user LEDs on the BBB
+// using a timer. It uses a memory map to enable access to
+// the BBB registers.
+// compile with gcc -g -Wall -o mmapBlink mmap_blink.c
+//Defines Section
+#define HWREG(x) (*((volatile unsigned int *)(x)))
+//GPIO defines
+#define GPIO1BA 0x4804C000
+#define GPIO_SET_DATA_OUT 0x194
+#define GPIO_CLEAR_DATA_OUT 0x190
+//INTC defines
+#define INTCBA 0x48200000
+//Timer 5 defines
+#define TIMER5_BA 0x48046000
+//other defines
+#define CLKWKUPS 0x44E00000
+#define LIGHT_BITS 0x01E00000
+//i2c defines
+#define CM_PER    0x44E00000
+#define CM_WKUP   0x44E04000
+#define I2C2_BASE 0x4819C000
+//#define SCL_MUX        0x96C    // uart1_rtsn
+//#define SDA_MUX        0x968    // uart1_ctsn
+#define SCL_MUX        0x97C // uart1_rtsn incorrect
+#define SDA_MUX        0x978 // uart1_ctsn incorrect
+#define CM_BASE   0x44E10000
+
+#define REVNB_LO        0x00
+#define REVNB_HI        0x04
+#define SYSC            0x10
+#define IRQSTATUS_RAW   0x24
+#define IRQSTATUS       0x28
+#define IRQENABLE_SET   0x2c
+#define IRQENABLE_CLR   0x30
+#define WE              0x34
+#define DMARXENABLE_SET 0x38
+#define DMATXENABLE_SET 0x3c
+#define DMARXENABLE_CLR 0x40
+#define DMATXENABLE_CLR 0x44
+#define DMARXWAKE_EN    0x48
+#define DMATXWAKE_EN    0x4c
+#define SYSS            0x90
+#define BUF             0x94
+#define CNT             0x98
+#define DATA            0x9c
+#define CON             0xa4
+#define OA              0xa8
+#define SA              0xac
+#define PSC             0xb0
+#define SCLL            0xb4
+#define SCLH            0xb8
+#define SYSTEST         0xbc
+#define BUFSTAT         0xc0
+#define OA1             0xc4
+#define OA2             0xc8
+#define OA3             0xcc
+#define ACTOA           0xd0
+#define SBLOCK          0xd4
+//Function Declarations
+void IntMasterIRQEnable();
+void int_handler();
+void turn_off_leds();
+void turn_on_leds();
+void timer5_int();
+void wait_loop();
+void return_from_int();
+void delay_();       //delay loop to burn some time
+void I2C_TEST(); // DP pt 1 testing
+
+//global variables
+int current_state = 1;
+int x;
+volatile unsigned int USR_STACK[100];
+volatile unsigned int INT_STACK[100];
+
+int main(void) {
+    //**** SET UP STACKS ****
+    // asm command allows for inline assembly.
+
+    //**** init USR stack ****
+    asm("LDR R13, =USR_STACK");         // Set register 13 = to USR_STACK variables
+    asm("ADD R13, R13, #0x100");        // Put 0x100 into R13 for our stack
+    //**** init IRQ stack ****
+    asm("CPS #0x12");
+    asm("LDR R13, =INT_STACK");         // Set register 13 = to USR_STACK variables
+    asm("ADD R13, R13, #0x100");      // Put 0x100 into R13 for our stack
+    asm("CPS #0x13");                               // Write 0x13 to CPS
+
+    //**** LED INIT ****
+    HWREG(CLKWKUPS + 0xAC) = 0x2;               //GPIO1 initialization code
+    HWREG(GPIO1BA + GPIO_CLEAR_DATA_OUT) = LIGHT_BITS;  //Set initial GPIO values
+    HWREG(GPIO1BA + 0x134) &= 0xFE1FFFFF;                               // set output enable
+
+    //**** TIMER 5 INIT ****
+    HWREG(CLKWKUPS + 0xEC) = 0x2;                   //wakeup timer 5
+    HWREG(CLKWKUPS + 0x518) = 0x2;              //set clock speed
+    HWREG(TIMER5_BA + 0x10) = 0x1;              //software reset
+    HWREG(TIMER5_BA + 0x28) = 0x7;              //clear irqs
+    HWREG(TIMER5_BA + 0x2C) = 0x2;              //enable overflow IRQ
+
+
+    //**** I2C INIT ****
+    HWREG(CLKWKUPS)             = 0x02; // CM_PER_L4LS_CLKSTCTRL
+    HWREG(CLKWKUPS + 0x44)      = 0x02; //I2C2 CLK
+    HWREG(CM_BASE + SCL_MUX)    = 0x33; //PIN MODE 3 - PULLUP SLOW SLEW
+    HWREG(CM_BASE + SDA_MUX)    = 0x33; //PIN MODE 3 - PULLUP SLOW SLEW INPUT
+    HWREG(I2C2_BASE + SYSC)     = 0x02; //RESET I2C2
+    HWREG(I2C2_BASE + PSC)      = 0x03; //SCALE BY 4 TO GET 12 MHz CLOCK
+    HWREG(I2C2_BASE + SCLL)     = 0x35; //SCALAR LOW REG 100Kbps
+    HWREG(I2C2_BASE + SCLH)     = 0x37; //SCALAR HIGH REG
+    HWREG(I2C2_BASE + OA)       = 0x00; //-OWN ADDRESS-
+    HWREG(I2C2_BASE + SA)       = 0xFF; //-SLAVE ADDRESS-
+    HWREG(I2C2_BASE + SYSTEST)  = 0xFFFFBFFF;// MASKIN B14 - FREE DEBUG
+          //  @Debug Config IN I2C_SYSTEST
+    asm("LDR    R0, =0X4819C0BC\n\t"        //@ Address of I2C_SYSTEST
+        "LDR        R2, [R0]\n\t"           //@ LOAD value
+        "AND    R2, R2, #0xFFFFBFFF\n\t"    //@ Mask it for b14-Free Debug
+        "STR        R2, [R0]");           //@ Write value to registert
+    HWREG(I2C2_BASE + CON)      = 0x8600;   //ENABLE BIT 9 10 15
+    HWREG(I2C2_BASE + CNT)      = 0x0A;     // COUNT OF TEN
+
+
+
+    //**** INTC INIT ****
+    HWREG(INTCBA + 0x10) = 0x2;               //reset INTC
+    HWREG(INTCBA + 0xC8) = 0x20000000;        //unmask INTC_TINT5
+
+    //**** ENABLE IRQ ****
+    IntMasterIRQEnable();
+
+    //**** INIT INTERNAL STATE ****
+    HWREG(TIMER5_BA + 0x3C) = 0xFFFFF000;       //set timer for 250 ms
+    HWREG(TIMER5_BA + 0x38) = 0x1;              //start timer
+
+    wait_loop();
+    return 0;
+}
+
+//------------------------------------------------------------------------------
+// FUNCTIONS - Below are the funcitons used in this program
+//------------------------------------------------------------------------------
+void wait_loop(void)
+// The wait_loop function is a while loop with nothing in it.
+// It is used for the system to wait for an interrupt to take action on.
+{
+    while(1)
+    {
+        //do nothing loop
+    }
+}
+
+void delay_(void)
+{
+    for(int waiting = 6666; waiting > 0 ; waiting-- )
+    {
+        asm("NOP");
+    }
+}
+
+void int_handler(void)
+{
+    if(HWREG(0x482000D8) == 0x20000000)
+    {
+        timer5_int();
+    }
+    asm("LDMFD SP!, {LR}");
+    asm("LDMFD SP!, {LR}");
+    asm("SUBS PC, LR, #0x4");
+}
+
+void timer5_int(void)
+{
+    HWREG(TIMER5_BA + 0x28) = 0x7;                  //clear timer5 interrupts
+    HWREG(INTCBA + 0x48) = 0x1;                         //clear NEWIRQ bit in INTC
+    if(current_state == 1)                                  //toggle current state
+    {
+        turn_on_leds();
+        I2C_TEST();
+        turn_off_leds();
+        current_state = 0;
+        HWREG(TIMER5_BA + 0x3C) = 0xFFFFE000;   //set timer for 250 ms
+        HWREG(TIMER5_BA + 0x38) = 0x1;              //start timer
+    }
+    else
+    {
+        current_state = 1;
+        HWREG(TIMER5_BA + 0x3C) = 0xFFFFA002;   //set timer for 750 ms 24573 -- 32/33 per ms
+        HWREG(TIMER5_BA + 0x38) = 0x1;              //start timer
+    }                                                                               //toggle finished
+
+}
+
+void I2C_TEST(void){ //SETUP TO EASILY DISMEMBER INTO OTHER FUNCTIONS.
+    delay_();
+        asm("BBTEST:\n\t"                   //BB TESTING POLL METHOD
+            "LDR R0, =0x4819c024\n\t"//I2C2_BASE + IRQSTATUS_RAW\n\t"
+            "LDR R1, [R0]\n\t"
+            "LDR R4, =#0x1000\n\t"
+            "AND R1, R4, R1\n\t"
+            "cmp R1, #0x1000\n\t"
+            "BNE BBTEST"            // KEEP TESTING IF NOT POPPED
+            );
+    delay_();
+	asm(  "LDR R0, =0x4819c028\n\t"//I2C2+IRQSTATUS\n\t"
+		"MOV R1, #0x10\n\t"         // VAL TO CLEAR  XRDY
+		"STRB R1, [R0]"         // CLEAR
+    );
+    delay_();
+	asm("TST_XRDY:\n\t"                 //POLLIN X RDY
+		"LDR R0, =0x4819c024\n\t"//I2C2+IRQSTATUS_RAW\n\t"
+		"LDRB R1, [R0]\n\t"
+		"TST R1, #0x10\n\t"
+	   "BEQ TST_XRDY"          // CHECK UNTIL FINISHED.
+		);
+    HWREG(I2C2_BASE + CNT) = 0x01; // COUNT TO 1
+    HWREG(I2C2_BASE + DATA) = 0xFF;
+    delay_();
+}
+
+
+
+
+void turn_on_leds(void)
+{
+    HWREG(GPIO1BA + GPIO_SET_DATA_OUT) = LIGHT_BITS;    //turn on leds
+}
+
+void turn_off_leds(void)
+{
+    HWREG(GPIO1BA + GPIO_CLEAR_DATA_OUT) = LIGHT_BITS;  //turn off leds
+}
+
+
+void IntMasterIRQEnable(void)
+{
+    asm("   mrs     r0, CPSR\n\t"
+        "   bic     r0, r0, #0x80\n\t"
+        "   msr     CPSR_c, R0");
+}
