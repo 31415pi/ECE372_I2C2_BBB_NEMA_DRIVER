@@ -17,3 +17,5 @@ The HW-048 is a Polulu-clone ”stepper motor driver” H-Bridge  breakout  for 
 Figure 2:  Truth Table for TB6612 IC
 
 Using both sets of the HW-048 output it is possible to have highly precise operation of a bipolarstepper motor.  We will be using a Sainsmart 17-HSR-1006-25 BET nema motor (2014-05-14 manufacturingdate). Part 1 is simply finding success with sending any data on the I2C output. Part 2 will be utilizing the protocol and peripherals to demonstrate controlled rotational movementof the NEMA motor shaft both in clockwise and counterclockwise directions.
+
+Edit: It should be noted that code does not include activation of PWMA and PWMB which are required to be high in order to deliver output. These pins can be tied to VCC +5V to enable output. OE pin must be attached to ground/low to activate PWM functionality. 
