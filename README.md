@@ -1,5 +1,7 @@
 This project utilizes the Beaglebone Black platform featuring the ARM Cortex-A8 AM335x 1GHz Sitara Processor.  
 
+See the entire project report [here](https://github.com/31415pi/ECE372_I2C2_BBB_NEMA_DRIVER/blob/main/W21-ECE372-DESIGN_PROJECT_2-FINAL_REVISION.pdf).
+
 We will be utilizing the I2C2, GPIO, Clock, Timer5 and Interrupt peripherals embeddedon the device. BBB  GPIO  Pin  19  and  20  will  be  used  to  interface  the  I2C2  peripheral  output  with  HW-052(PCA9685). This is written in C with embedded assembly in places.  
 
 The HW-052 is a I2C addressable, 16-channel, PWM generating breakout for the PCA9685IC. It features external driver power delivery and isolated control voltage. The slave address is adjustable via jumpers for easy I2C stacking of multiple HW-052 boards.
